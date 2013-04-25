@@ -2,13 +2,14 @@ import math
 import hashlib
 import numpy as np
 
+from math import floor
 from scipy.sparse import lil_matrix
 from struct import unpack, pack, calcsize
 from pybloom import BloomFilter, make_hashfuncs
 
 class CountdownBloomFilter(object):
     '''
-    Implementation of a Countdown Bloom Filter
+    Implementation of a Modified Countdown Bloom Filter. Uses a batched maintenance process instead of a continuous one.
 
     Sanjuas-Cuxart, Josep, et al. "A lightweight algorithm for traffic filtering over sliding windows."
     Communications (ICC), 2012 IEEE International Conference on. IEEE, 2012.
@@ -29,6 +30,7 @@ class CountdownBloomFilter(object):
         self.cellarray = np.zeros(self.num_bits).astype(np.uint8)
         self.counter_init = 255
         self.refresh_head = 0
+         # This is the unset ratio ... and we keep constant @ 0.5
         self.z = 0.5
 
     def _setup(self, error_rate, num_slices, bits_per_slice, capacity, count):
@@ -47,16 +49,32 @@ class CountdownBloomFilter(object):
         '''
         if self.cellarray[self.refresh_head] != 0:
             self.cellarray[self.refresh_head] -= 1
+        self.refresh_head += 1
 
-    def ratio_of_unset(self):
-        return float(self.count) / self.capacity
+    def batched_expiration_maintenance_dev(self, num_iterations):
+        '''
+        Batched version of expiration_maintenance()
+        '''
+        if self.z != 0:
+            for i in range(num_iterations):
+                self.expiration_maintenance()
+
+    def batched_expiration_maintenance(self, num_iterations):
+        '''
+        Batched version of expiration_maintenance()
+        Cython version
+        '''
+        pass
 
     def compute_refresh_time(self):
         '''
         Compute the refresh period for the given expiration delay
         '''
-        s = float(self.expiration) / self.num_bits * (self.counter_init - 1 + (1 / (self.z * (self.num_slices + 1))))
+        s = float(self.expiration) * (1.0/(self.num_bits)) * (1.0/(self.counter_init - 1 + (1.0/(self.z * (self.num_slices + 1)))))
         return s
+
+    def num_batched_maintenance(self, delay):
+        return int(floor(delay / self.compute_refresh_time()))
 
     def __contains__(self, key):
         if not isinstance(key, list):
