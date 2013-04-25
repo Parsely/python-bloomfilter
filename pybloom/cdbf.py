@@ -5,7 +5,7 @@ import numpy as np
 from math import floor
 from scipy.sparse import lil_matrix
 from struct import unpack, pack, calcsize
-from pybloom import BloomFilter, make_hashfuncs
+from pybloom import BloomFilter, ScalableBloomFilter, make_hashfuncs
 
 class CountdownBloomFilter(object):
     '''
@@ -106,6 +106,61 @@ class CountdownBloomFilter(object):
         return False
 
 
+class ScalableCountdownBloomFilter(object):
+    SMALL_SET_GROWTH = 2
+    LARGE_SET_GROWTH = 4
+    FILE_FMT = '<idQd'
 
+    def __init__(self, initial_capacity=100,
+                       error_rate=0.001,
+                       mode=SMALL_SET_GROWTH,
+                       expiration = 60):
+        if not error_rate or error_rate < 0:
+            raise ValueError("Error_Rate must be a decimal less than 0.")
+        self._setup(mode, 0.9, initial_capacity, error_rate)
+        self.filters = []
+        self.expiration = expiration
 
+    def _setup(self, mode, ratio, initial_capacity, error_rate):
+        self.scale = mode
+        self.ratio = ratio
+        self.initial_capacity = initial_capacity
+        self.error_rate = error_rate
+
+    def __contains__(self, key):
+        for f in reversed(self.filters):
+            if key in f:
+                return True
+        return False
+
+    def add(self, key):
+        if key in self:
+            return True
+        if not self.filters:
+            filter = CountdownBloomFilter(capacity=self.initial_capacity,
+                                          error_rate=self.error_rate * (1.0 - self.ratio),
+                                          expiration=self.expiration)
+            self.filters.append(filter)
+        else:
+            filter = self.filters[-1]
+            if filter.count >= filter.capacity:
+                filter = CountdownBloomFilter(capacity=filter.capacity * self.scale,
+                                              error_rate=filter.error_rate * self.ratio,
+                                              expiration=self.expiration)
+                self.filters.append(filter)
+        filter.add(key, skip_check=True)
+        return False
+
+    @property
+    def capacity(self):
+        """Returns the total capacity for all filters in this SBF"""
+        return sum([f.capacity for f in self.filters])
+
+    @property
+    def count(self):
+        return len(self)
+
+    def __len__(self):
+        """Returns the total number of elements stored in this SBF"""
+        return sum([f.count for f in self.filters])
 
