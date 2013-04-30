@@ -38,7 +38,7 @@ class CountdownBloomFilterTests(unittest.TestCase):
     def test_compute_refresh_time(self):
         assert self.bf.compute_refresh_time() == 2.4132205876674775e-06
 
-    def test_single_batch_expiration(self):
+    def _single_batch_expiration(self):
         existing = self.bf.add('random_uuid')
         assert existing == False
         existing = self.bf.add('random_uuid')
@@ -63,7 +63,9 @@ class CountdownBloomFilterTests(unittest.TestCase):
             existing = 'random_uuid' in self.bf
             t2 = time.time()
             elapsed = t2 - t1
-        print time.time() - start
+        experimental_experation = time.time() - start
+        print experimental_experation
+        assert (experimental_experation - self.expiration) < 0.2 # Arbitrary error threshold
 
     def test_expiration(self):
         existing = self.bf.add('random_uuid')
