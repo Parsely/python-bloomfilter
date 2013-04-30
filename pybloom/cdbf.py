@@ -53,7 +53,7 @@ class CountdownBloomFilter(object):
             self.cellarray[self.refresh_head] -= 1
         self.refresh_head = (self.refresh_head + 1) % self.num_bits
 
-    def batched_expiration_maintenance(self, elapsed_time):
+    def batched_expiration_maintenance_dev(self, elapsed_time):
         '''
         Batched version of expiration_maintenance()
         '''
@@ -61,12 +61,13 @@ class CountdownBloomFilter(object):
         for i in range(num_iterations):
             self.expiration_maintenance()
 
-    def batched_expiration_maintenance_cyt(self, num_iterations):
+    def batched_expiration_maintenance(self, num_iterations):
         '''
         Batched version of expiration_maintenance()
         Cython version
         '''
-        pass
+        num_iterations = self.num_batched_maintenance(elapsed_time)
+        self.refresh_head = maintenance(self.cellarray, self.num_bits, num_iterations, self.refresh_head)
 
     def compute_refresh_time(self):
         '''
