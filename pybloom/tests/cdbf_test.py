@@ -35,10 +35,13 @@ class CountdownBloomFilterTests(unittest.TestCase):
         assert existing == True
         assert (self.bf.cellarray.nonzero()[0] == np.array([ 228, 2104, 3151, 4372, 6496, 7449])).all()
 
+    def test_touch(self):
+        pass
+
     def test_compute_refresh_time(self):
         assert self.bf.compute_refresh_time() == 2.4132205876674775e-06
 
-    def _single_batch_expiration(self):
+    def test_single_batch_expiration(self):
         existing = self.bf.add('random_uuid')
         assert existing == False
         existing = self.bf.add('random_uuid')
@@ -87,11 +90,31 @@ class CountdownBloomFilterTests(unittest.TestCase):
 
 class ScalableCountdownBloomFilter(unittest.TestCase):
     '''
-    Tests for CountdownBloomFilter
+    Tests for ScalableCountdownBloomFilter
     '''
     @classmethod
     def setUp(self):
-        pass
+        self.batch_refresh_period = 0.1
+        self.expiration = 5.0
+        self.bf = ScalableCountdownBloomFilter(initial_capacity=1000, error_rate=0.02, expiration=self.expiration)
+
+    def test_expiration(self):
+        existing = self.bf.add('random_uuid')
+        assert existing == False
+        existing = self.bf.add('random_uuid')
+        assert existing == True
+        nzi = self.bf.cellarray.nonzero()[0]
+        # Check membership just before expiration
+        nbr_step = int(self.expiration / self.batch_refresh_period)
+        for i in range(nbr_step - 1):
+            self.bf.batched_expiration_maintenance(self.batch_refresh_period)
+        existing = 'random_uuid' in self.bf
+        assert existing == True
+        # Check membership right after expiration
+        self.bf.batched_expiration_maintenance(self.batch_refresh_period)
+        existing = 'random_uuid' in self.bf
+        assert existing == False
+
 
 
 if __name__ == '__main__':

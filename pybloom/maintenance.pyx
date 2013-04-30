@@ -10,18 +10,26 @@ cimport numpy as np
 @cython.wraparound(False)
 @cython.boundscheck(False)
 @cython.cdivision(True)
-cdef int maintenance_cyt(np.ndarray[np.uint8_t, ndim=1, mode="c"] cells, int cells_size, int num_iterations, head):
-
-    cdef int refresh_head = head
-    cdef int itr
+cdef tuple maintenance_cyt(np.ndarray[np.uint8_t, ndim=1, mode="c"] cells, long int cells_size, long int num_iterations, long int head):
+    '''
+    Maintenance process for the Countdown Bloom Filter
+    '''
+    cdef long int refresh_head = head
+    cdef long int itr
+    cdef long int nonzero = 0
+    cdef long int zero = 0
 
     for itr in xrange(num_iterations):
         if cells[refresh_head] != 0:
             cells[refresh_head] -= 1
+            nonzero += 1
+        else:
+            zero += 1
         refresh_head = (refresh_head + 1) % cells_size
-    return refresh_head
+    return refresh_head, nonzero, zero
 
-def maintenance(np.ndarray[np.uint8_t, ndim=1, mode="c"] cells, int cells_size, int num_iterations, head):
+
+def maintenance(np.ndarray[np.uint8_t, ndim=1, mode="c"] cells, long int cells_size, long int num_iterations, head):
     return maintenance_cyt(cells, cells_size, num_iterations, head)
 
 

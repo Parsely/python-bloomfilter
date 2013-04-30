@@ -5,6 +5,7 @@ import numpy as np
 from math import floor
 from struct import unpack, pack, calcsize
 from pybloom import BloomFilter, ScalableBloomFilter, make_hashfuncs
+from maintenance import maintenance
 
 class CountdownBloomFilter(object):
     '''
@@ -28,7 +29,7 @@ class CountdownBloomFilter(object):
         self._setup(error_rate, num_slices, bits_per_slice, capacity, 0)
         self.cellarray = np.zeros(self.num_bits).astype(np.uint8)
         self.counter_init = 255
-        self.refresh_head = 1
+        self.refresh_head = 0
         # This is the unset ratio ... and we keep constant at 0.5
         # since the BF will operate most of the time at his optimal
         # set ratio (50 %) and the overall effect of this parameter
@@ -61,18 +62,22 @@ class CountdownBloomFilter(object):
         for i in range(num_iterations):
             self.expiration_maintenance()
 
-    def batched_expiration_maintenance(self, num_iterations):
+    def batched_expiration_maintenance(self, elapsed_time):
         '''
         Batched version of expiration_maintenance()
         Cython version
         '''
         num_iterations = self.num_batched_maintenance(elapsed_time)
-        self.refresh_head = maintenance(self.cellarray, self.num_bits, num_iterations, self.refresh_head)
+        self.refresh_head, nonzero, zero = maintenance(self.cellarray, self.num_bits, num_iterations, self.refresh_head)
+        print nonzero, zero
+        self.z = float(nonzero) / float(zero)
 
     def compute_refresh_time(self):
         '''
         Compute the refresh period for the given expiration delay
         '''
+        if self.z == 0:
+            self.z = 1E-10
         s = float(self.expiration) * (1.0/(self.num_bits)) * (1.0/(self.counter_init - 1 + (1.0/(self.z * (self.num_slices + 1)))))
         return s
 
@@ -123,6 +128,7 @@ class ScalableCountdownBloomFilter(object):
         self._setup(mode, 0.9, initial_capacity, error_rate)
         self.filters = []
         self.expiration = expiration
+        self.pointer = 0
 
     def _setup(self, mode, ratio, initial_capacity, error_rate):
         self.scale = mode
@@ -141,12 +147,15 @@ class ScalableCountdownBloomFilter(object):
             return True
         if not self.filters:
             filter = CountdownBloomFilter(capacity=self.initial_capacity,
-                                          error_rate=self.error_rate * (1.0 - self.ratio),
+                                          error_rate=self.error_rate,
                                           expiration=self.expiration)
             self.filters.append(filter)
         else:
-            filter = self.filters[-1]
-            if filter.count >= filter.capacity:
+            filter = self.filters[self.pointer]
+            #if filter.z >= 0.5:
+            while filter.z >= 0.5:
+                self.pointer =+ 1
+                filter = self.filters[self.pointer]
                 filter = CountdownBloomFilter(capacity=filter.capacity * self.scale,
                                               error_rate=filter.error_rate * self.ratio,
                                               expiration=self.expiration)
@@ -166,4 +175,13 @@ class ScalableCountdownBloomFilter(object):
     def __len__(self):
         """Returns the total number of elements stored in this SBF"""
         return sum([f.count for f in self.filters])
+
+    def batched_expiration_maintenance(self, elapsed_time):
+        self.pointer = None
+        for f,filter in enumerate(self.filters):
+            filter.batched_expiration_maintenance(elapsed_time)
+            if self.pointer == None and filter.z < 0.5:
+                self.pointer = f
+
+
 
