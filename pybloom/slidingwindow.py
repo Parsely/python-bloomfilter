@@ -3,7 +3,8 @@ import time
 from collections import deque
 from pybloom import ScalableBloomFilter
 
-VALID_RES = {'Min': 60,
+VALID_RES = {'Sec': 1,
+             'Min': 60,
              'Hour': 3600,
              'Day': 86400}
 
@@ -18,6 +19,16 @@ class DecayScalableBloomFilter(ScalableBloomFilter):
         self._setup_window_period(window_period)
         self._expired = False
         self._locked = False
+
+    def __repr__(self):
+        return 'BF expired @ %s' % int(self.expiration + int(self.timestamp))
+
+    def __contains__(self, key):
+        if not self.expired:
+            for f in reversed(self.filters):
+                if key in f:
+                    return True
+        return False
 
     @property
     def expired(self):
@@ -40,6 +51,7 @@ class DecayScalableBloomFilter(ScalableBloomFilter):
         self.window_period = VALID_RES[self.res]
         self.expiration = self.amount * VALID_RES[self.res]
         self.filters = deque(maxlen = self.amount)
+
 
 class SlidingWindowScalableBloomFilter(object):
     '''
@@ -87,6 +99,16 @@ class SlidingWindowScalableBloomFilter(object):
 
     def add(self, key):
         if key in self:
+            '''
+            Here we return True because one of the BF contains the key
+            but we'll update the last BF anyway as a coarse and cheap way to "update the timestamp"
+
+            This solution can inflate memory consumption for limit case like this: the number of uniques
+            in a day in the same as the whole month. In this case the month's BF will consume 30X more
+            memory than a plain BF containing the same number of uniques .
+            '''
+            filter = self.filters[-1]
+            filter.add(key)
             return True
         if not self.filters:
             filter = DecayScalableBloomFilter(initial_capacity=self.initial_capacity,
@@ -95,8 +117,8 @@ class SlidingWindowScalableBloomFilter(object):
             self.filters.append(filter)
         else:
             filter = self.filters[-1]
-            if filters.locked:
-                if filters.expired:
+            if filter.locked:
+                if filter.expired:
                     self._reset_filters()
                 filter = DecayScalableBloomFilter(initial_capacity=self.initial_capacity,
                                               error_rate=self.error_rate,
