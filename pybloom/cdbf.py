@@ -120,7 +120,7 @@ class CountdownBloomFilter(object):
         hashes = self.make_hashes(key)
         if not skip_check and hashes in self:
             return True
-        if self.count > self.capacity:
+        if self.count > self.capacity or self.estimate_z > 0.5:
             raise IndexError("BloomFilter is at capacity")
         offset = 0
         for k in hashes:
@@ -143,6 +143,7 @@ class ScalableCountdownBloomFilter(object):
             raise ValueError("Error_Rate must be a decimal less than 0.")
         self._setup(mode, 0.9, initial_capacity, error_rate)
         self.filters = []
+        self.filters_count = 0
         self.expiration = expiration
         self.pointer = 0
 
@@ -158,24 +159,29 @@ class ScalableCountdownBloomFilter(object):
                 return True
         return False
 
+    def _add_filter(self):
+        filter = CountdownBloomFilter(capacity=filter.capacity * self.scale,
+                                  error_rate=filter.error_rate * self.ratio,
+                                  expiration=self.expiration)
+        self.filters.append(filter)
+        self.filters_count += 1
+        self.pointer = self.filters_count-1
+
     def add(self, key):
         if key in self:
             return True
         if not self.filters:
-            filter = CountdownBloomFilter(capacity=self.initial_capacity,
-                                          error_rate=self.error_rate,
-                                          expiration=self.expiration)
-            self.filters.append(filter)
+            self._add_filter()
         else:
             filter = self.filters[self.pointer]
-            #if filter.z >= 0.5:
-            while filter.z >= 0.5: ############## <<< Im here
-                self.pointer =+ 1
-                filter = self.filters[self.pointer]
-                filter = CountdownBloomFilter(capacity=filter.capacity * self.scale,
-                                              error_rate=filter.error_rate * self.ratio,
-                                              expiration=self.expiration)
-                self.filters.append(filter)
+            if filter.count >= filter.capacity:
+                self.pointer = -1
+                while filter.count >= filter.capacity:
+                    self.pointer =+ 1
+                    if self.pointer >= self.filters_count:
+                        self._add_filter()
+                    filter = self.filters[self.pointer]
+
         filter.add(key, skip_check=True)
         return False
 
