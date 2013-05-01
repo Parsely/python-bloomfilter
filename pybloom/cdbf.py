@@ -68,9 +68,8 @@ class CountdownBloomFilter(object):
         Cython version
         '''
         num_iterations = self.num_batched_maintenance(elapsed_time)
-        self.refresh_head, nonzero, zero = maintenance(self.cellarray, self.num_bits, num_iterations, self.refresh_head)
-        print nonzero, zero
-        self.z = float(nonzero) / float(zero)
+        self.refresh_head, nonzero = maintenance(self.cellarray, self.num_bits, num_iterations, self.refresh_head)
+        self.z = float(nonzero) / float(num_iterations)
 
     def compute_refresh_time(self):
         '''
@@ -153,7 +152,7 @@ class ScalableCountdownBloomFilter(object):
         else:
             filter = self.filters[self.pointer]
             #if filter.z >= 0.5:
-            while filter.z >= 0.5:
+            while filter.z >= 0.5: ############## <<< Im here
                 self.pointer =+ 1
                 filter = self.filters[self.pointer]
                 filter = CountdownBloomFilter(capacity=filter.capacity * self.scale,
