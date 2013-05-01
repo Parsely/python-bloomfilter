@@ -21,7 +21,8 @@ cdef tuple maintenance_cyt(np.ndarray[np.uint8_t, ndim=1, mode="c"] cells, long 
     for itr in xrange(num_iterations):
         if cells[refresh_head] != 0:
             cells[refresh_head] -= 1
-            nonzero += 1
+            if cells[refresh_head] != 0:
+                nonzero += 1
         refresh_head = (refresh_head + 1) % cells_size
     return refresh_head, nonzero
 

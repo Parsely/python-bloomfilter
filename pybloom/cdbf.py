@@ -30,11 +30,12 @@ class CountdownBloomFilter(object):
         self.cellarray = np.zeros(self.num_bits).astype(np.uint8)
         self.counter_init = 255
         self.refresh_head = 0
-        # This is the unset ratio ... and we keep constant at 0.5
+        # This is the unset ratio ... and we keep it constant at 0.5
         # since the BF will operate most of the time at his optimal
         # set ratio (50 %) and the overall effect of this parameter
         # on the refresh rate is very minimal anyway.
         self.z = 0.5
+        self.estimate_z = 0
 
     def _setup(self, error_rate, num_slices, bits_per_slice, capacity, count):
         self.error_rate = error_rate
@@ -44,6 +45,21 @@ class CountdownBloomFilter(object):
         self.num_bits = num_slices * bits_per_slice
         self.count = count
         self.make_hashes = make_hashfuncs(self.num_slices, self.bits_per_slice)
+
+    def _compute_z(self):
+        '''
+        Compute the unset ratio (exact)
+        '''
+        return self.cellarray.nonzero()[0].shape[0] / self.num_bits
+
+    def _estimate_count(self):
+        '''
+        Update the count number using the estimation of the unset ratio
+        '''
+        if self.estimate_z == 0:
+            self.estimate_z = (1.0 / self.num_bits)
+        #self.count = int(self.num_bits * (math.log(self.estimate_z) * math.log(1-self.estimate_z)) / (- math.log(self.error_rate)))
+        self.count = int(-(self.num_bits / self.num_slices) * math.log(1 - self.estimate_z))
 
     def expiration_maintenance(self):
         '''
@@ -69,7 +85,8 @@ class CountdownBloomFilter(object):
         '''
         num_iterations = self.num_batched_maintenance(elapsed_time)
         self.refresh_head, nonzero = maintenance(self.cellarray, self.num_bits, num_iterations, self.refresh_head)
-        self.z = float(nonzero) / float(num_iterations)
+        self.estimate_z = float(nonzero) / float(num_iterations)
+        self._estimate_count()
 
     def compute_refresh_time(self):
         '''
