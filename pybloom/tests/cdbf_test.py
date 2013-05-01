@@ -49,7 +49,6 @@ class CountdownBloomFilterTests(unittest.TestCase):
         nzi = self.bf.cellarray.nonzero()[0]
         assert (self.bf.cellarray[nzi] == np.array([255, 255, 255, 255, 255, 255], dtype=np.uint8)).all()
         self.bf.batched_expiration_maintenance(self.batch_refresh_period)
-        print self.bf.cellarray[nzi]
         assert (self.bf.cellarray[nzi] == np.array([249, 250, 250, 250, 250, 250], dtype=np.uint8)).all()
 
     def _test_expiration_realtime(self):
@@ -66,9 +65,8 @@ class CountdownBloomFilterTests(unittest.TestCase):
             existing = 'random_uuid' in self.bf
             t2 = time.time()
             elapsed = t2 - t1
-        experimental_experation = time.time() - start
-        print experimental_experation
-        assert (experimental_experation - self.expiration) < 0.2 # Arbitrary error threshold
+        experimental_expiration = time.time() - start
+        assert (experimental_expiration - self.expiration) < 0.2 # Arbitrary error threshold
 
     def test_expiration(self):
         existing = self.bf.add('random_uuid')
@@ -86,6 +84,21 @@ class CountdownBloomFilterTests(unittest.TestCase):
         self.bf.batched_expiration_maintenance(self.batch_refresh_period)
         existing = 'random_uuid' in self.bf
         assert existing == False
+
+    def test_count_estimate(self):
+        for i in range(500):
+            self.bf.add(str(i))
+        assert self.bf.count == 500
+        self.bf.batched_expiration_maintenance(2.5)
+        for i in range(500,1000):
+            self.bf.add(str(i))
+        assert self.bf.count == 992
+        for i in range(26):
+            self.bf.batched_expiration_maintenance(0.1)
+        assert self.bf.count == 501
+        self.assertAlmostEqual(self.bf.estimate_z, 0.309, places=3)
+        self.assertAlmostEqual(float(self.bf.cellarray.nonzero()[0].shape[0]) / self.bf.num_bits, 0.309, places=3)
+
 
 
 class ScalableCountdownBloomFilterTests(unittest.TestCase):
@@ -128,16 +141,22 @@ class ScalableCountdownBloomFilterTests(unittest.TestCase):
         assert self.bf.pointer == 0
         for i in range(4000,4992):
             self.bf.add(str(i))
-            print i
             assert self.bf.pointer == 0
 
         self.bf.add('an_other_random_uuid2')
         assert self.bf.pointer == 2
         assert self.bf.filters[0].count == 1000
         assert len(self.bf.filters) == 3
-        
 
 
+    def test_add(self):
+        existing = self.bf.add('random_uuid')
+        assert existing == False
+        existing = self.bf.add('random_uuid')
+        assert existing == True
+        assert (self.bf.filters[0].cellarray.nonzero()[0] == np.array([1360,1600,3789,4794,6882,8087])).all()
+
+    
 
 if __name__ == '__main__':
      unittest.main()
