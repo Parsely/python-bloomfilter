@@ -160,9 +160,14 @@ class ScalableCountdownBloomFilter(object):
         return False
 
     def _add_filter(self):
-        filter = CountdownBloomFilter(capacity=filter.capacity * self.scale,
+        if self.filters:
+            filter = self.filters[-1]
+            filter = CountdownBloomFilter(capacity=filter.capacity * self.scale,
                                   error_rate=filter.error_rate * self.ratio,
                                   expiration=self.expiration)
+        else:
+            filter = CountdownBloomFilter(capacity=self.initial_capacity,
+                                          error_rate=self.error_rate * self.ratio)
         self.filters.append(filter)
         self.filters_count += 1
         self.pointer = self.filters_count-1
@@ -172,13 +177,15 @@ class ScalableCountdownBloomFilter(object):
             return True
         if not self.filters:
             self._add_filter()
+            filter = self.filters[self.pointer]
         else:
             filter = self.filters[self.pointer]
             if filter.count >= filter.capacity:
-                self.pointer = -1
+                self.pointer = 0
+                filter = self.filters[self.pointer]
                 while filter.count >= filter.capacity:
                     self.pointer =+ 1
-                    if self.pointer >= self.filters_count:
+                    if self.pointer >= self.filters_count-1:
                         self._add_filter()
                     filter = self.filters[self.pointer]
 
@@ -199,11 +206,11 @@ class ScalableCountdownBloomFilter(object):
         return sum([f.count for f in self.filters])
 
     def batched_expiration_maintenance(self, elapsed_time):
-        self.pointer = None
+        #self.pointer = None
         for f,filter in enumerate(self.filters):
             filter.batched_expiration_maintenance(elapsed_time)
-            if self.pointer == None and filter.z < 0.5:
-                self.pointer = f
+            #if self.pointer == None and filter.z < 0.5:
+             #   self.pointer = f
 
 
 
