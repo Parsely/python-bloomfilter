@@ -85,8 +85,11 @@ class CountdownBloomFilter(object):
         '''
         num_iterations = self.num_batched_maintenance(elapsed_time)
         self.refresh_head, nonzero = maintenance(self.cellarray, self.num_bits, num_iterations, self.refresh_head)
-        self.estimate_z = float(nonzero) / float(num_iterations)
-        self._estimate_count()
+        if num_iterations != 0:
+            self.estimate_z = float(nonzero) / float(num_iterations)
+            self._estimate_count()
+        processed_interval = num_iterations * self.compute_refresh_time()
+        return processed_interval
 
     def compute_refresh_time(self):
         '''
@@ -119,6 +122,10 @@ class CountdownBloomFilter(object):
     def add(self, key, skip_check=False):
         hashes = self.make_hashes(key)
         if not skip_check and hashes in self:
+            offset = 0
+            for k in hashes:
+                self.cellarray[offset + k] = self.counter_init
+                offset += self.bits_per_slice
             return True
         if self.count > self.capacity or self.estimate_z > 0.5:
             raise IndexError("BloomFilter is at capacity")
