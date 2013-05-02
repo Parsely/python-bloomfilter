@@ -9,7 +9,7 @@ class HashFilter(object):
         self.unique_items = {}
 
     def add(self, key, timestamp = None):
-        timestamp = int(timestamp)
+        timestamp = float(timestamp)
         if key in self.unique_items:
             if timestamp < self.unique_items[key]:
                 self.unique_items[key] = timestamp + self.expiration
@@ -22,7 +22,7 @@ class HashFilter(object):
             return False
 
     def contains(self, key, timestamp):
-        timestamp = int(timestamp)
+        timestamp = float(timestamp)
         if key in self.unique_items:
             if timestamp < self.unique_items[key]:
                 return True
