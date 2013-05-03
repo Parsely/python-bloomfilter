@@ -36,7 +36,26 @@ class CountdownBloomFilterTests(unittest.TestCase):
         assert (self.bf.cellarray.nonzero()[0] == np.array([ 228, 2104, 3151, 4372, 6496, 7449])).all()
 
     def test_touch(self):
-        pass
+        existing = self.bf.add('random_uuid')
+        assert existing == False
+        existing = self.bf.add('random_uuid')
+        assert existing == True
+        nzi = self.bf.cellarray.nonzero()[0]
+        # Check membership just before expiration
+        nbr_step = int(self.expiration / self.batch_refresh_period)
+        for i in range(nbr_step - 1):
+            self.bf.batched_expiration_maintenance(self.batch_refresh_period)
+        existing = 'random_uuid' in self.bf
+        assert existing == True
+
+        # Touch
+        existing = self.bf.add('random_uuid')
+
+        # Check membership right after expiration
+        self.bf.batched_expiration_maintenance(2*self.batch_refresh_period)
+        existing = 'random_uuid' in self.bf
+        assert existing == False
+
 
     def test_compute_refresh_time(self):
         assert self.bf.compute_refresh_time() == 2.4132205876674775e-06
@@ -98,7 +117,6 @@ class CountdownBloomFilterTests(unittest.TestCase):
         assert self.bf.count == 501
         self.assertAlmostEqual(self.bf.estimate_z, 0.309, places=3)
         self.assertAlmostEqual(float(self.bf.cellarray.nonzero()[0].shape[0]) / self.bf.num_bits, 0.309, places=3)
-
 
 
 class ScalableCountdownBloomFilterTests(unittest.TestCase):
