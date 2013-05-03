@@ -214,10 +214,12 @@ class ScalableCountdownBloomFilter(object):
 
     def batched_expiration_maintenance(self, elapsed_time):
         #self.pointer = None
+        processed_interval = []
         for f,filter in enumerate(self.filters):
-            filter.batched_expiration_maintenance(elapsed_time)
+            processed_interval.append(filter.batched_expiration_maintenance(elapsed_time))
             #if self.pointer == None and filter.z < 0.5:
              #   self.pointer = f
+        return tuple(processed_interval)
 
 
 
