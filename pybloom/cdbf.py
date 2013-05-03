@@ -179,23 +179,31 @@ class ScalableCountdownBloomFilter(object):
         self.filters_count += 1
         self.pointer = self.filters_count-1
 
+    def _get_filter(self):
+        '''
+        Get a Filter
+        '''
+        filter = self.filters[self.pointer]
+        if filter.count >= filter.capacity:
+            self.pointer = 0
+            filter = self.filters[self.pointer]
+            while filter.count >= filter.capacity:
+                self.pointer =+ 1
+                if self.pointer >= self.filters_count-1:
+                    self._add_filter()
+                filter = self.filters[self.pointer]
+        return filter
+
     def add(self, key):
         if key in self:
+            filter = self._get_filter() ### Update this: retrieve the existing filter containing the key
+            filter.add(key, skip_check=True)
             return True
         if not self.filters:
             self._add_filter()
             filter = self.filters[self.pointer]
         else:
-            filter = self.filters[self.pointer]
-            if filter.count >= filter.capacity:
-                self.pointer = 0
-                filter = self.filters[self.pointer]
-                while filter.count >= filter.capacity:
-                    self.pointer =+ 1
-                    if self.pointer >= self.filters_count-1:
-                        self._add_filter()
-                    filter = self.filters[self.pointer]
-
+            filter = self._get_filter()
         filter.add(key, skip_check=True)
         return False
 
