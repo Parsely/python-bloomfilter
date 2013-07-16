@@ -6,6 +6,7 @@ import os
 
 from setuptools import setup, find_packages, Extension
 from distutils.command import build_ext
+import numpy
 
 VERSION = '2.0.0'
 DESCRIPTION = "PyBloom: A Probabilistic data structure"
@@ -42,6 +43,6 @@ setup(
     platforms=['any'],
     test_suite="pybloom.tests",
     zip_safe=False,
-    install_requires=['bitarray>=0.3.4', 'numpy'],
-    ext_modules = [Extension("maintenance", ["pybloom/maintenance.c"], )],
+    install_requires=['numpy','bitarray>=0.3.4'],
+    ext_modules = [Extension("maintenance", ["pybloom/maintenance.c"], include_dirs=[numpy.get_include()])],
 )
