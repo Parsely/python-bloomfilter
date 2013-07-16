@@ -5,8 +5,7 @@ use_setuptools()
 import os
 
 from setuptools import setup, find_packages, Extension
-from Cython.Distutils import build_ext
-import numpy
+from distutils.command import build_ext
 
 VERSION = '2.0.0'
 DESCRIPTION = "PyBloom: A Probabilistic data structure"
@@ -42,8 +41,7 @@ setup(
     packages=find_packages(exclude=['ez_setup']),
     platforms=['any'],
     test_suite="pybloom.tests",
-    zip_safe=True,
+    zip_safe=False,
     install_requires=['bitarray>=0.3.4', 'numpy', 'cython'],
-    cmdclass = {'build_ext': build_ext},
-    ext_modules = [Extension("maintenance", ["pybloom/maintenance.pyx"], include_dirs=[numpy.get_include()])],
+    ext_modules = [Extension("maintenance", ["pybloom/maintenance.c"], )],
 )
