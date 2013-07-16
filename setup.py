@@ -42,6 +42,6 @@ setup(
     platforms=['any'],
     test_suite="pybloom.tests",
     zip_safe=False,
-    install_requires=['bitarray>=0.3.4', 'numpy', 'cython'],
+    install_requires=['bitarray>=0.3.4', 'numpy'],
     ext_modules = [Extension("maintenance", ["pybloom/maintenance.c"], )],
 )
