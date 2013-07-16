@@ -43,7 +43,7 @@ setup(
     platforms=['any'],
     test_suite="pybloom.tests",
     zip_safe=True,
-    install_requires=['bitarray>=0.3.4'],
+    install_requires=['bitarray>=0.3.4', 'numpy', 'cython'],
     cmdclass = {'build_ext': build_ext},
     ext_modules = [Extension("maintenance", ["pybloom/maintenance.pyx"], include_dirs=[numpy.get_include()])],
 )
