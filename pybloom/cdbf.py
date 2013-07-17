@@ -59,6 +59,7 @@ class CountdownBloomFilter(object):
         '''
         if self.estimate_z == 0:
             self.estimate_z = (1.0 / self.num_bits)
+        self.estimate_z = min(self.estimate_z, 0.999999)
         #self.count = int(self.num_bits * (math.log(self.estimate_z) * math.log(1-self.estimate_z)) / (- math.log(self.error_rate)))
         self.count = int(-(self.num_bits / self.num_slices) * math.log(1 - self.estimate_z))
 
