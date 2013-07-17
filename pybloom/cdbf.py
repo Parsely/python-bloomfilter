@@ -16,7 +16,7 @@ class CountdownBloomFilter(object):
 
     http://www-mobile.ecs.soton.ac.uk/home/conference/ICC2012/symposia/papers/a_lightweight_algorithm_for_traffic_filtering_over_sliding__.pdf
     '''
-    def __init__(self, capacity, error_rate=0.001, expiration=60):
+    def __init__(self, capacity, error_rate=0.001, expiration=60, disable_hard_capacity=False):
         self.expiration = expiration
         if not (0 < error_rate < 1):
             raise ValueError("Error_Rate must be between 0 and 1.")
@@ -36,6 +36,7 @@ class CountdownBloomFilter(object):
         # on the refresh rate is very minimal anyway.
         self.z = 0.5
         self.estimate_z = 0
+        self.disable_hard_capacity = disable_hard_capacity
 
     def _setup(self, error_rate, num_slices, bits_per_slice, capacity, count):
         self.error_rate = error_rate
@@ -127,7 +128,7 @@ class CountdownBloomFilter(object):
                 self.cellarray[offset + k] = self.counter_init
                 offset += self.bits_per_slice
             return True
-        if self.count > self.capacity or self.estimate_z > 0.5:
+        if (self.count > self.capacity or self.estimate_z > 0.5) and not self.disable_hard_capacity:
             raise IndexError("BloomFilter is at capacity")
         offset = 0
         for k in hashes:
